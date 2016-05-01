@@ -1,0 +1,33 @@
+{
+  "name": "audiotour",
+  "version": "1.0.0",
+  "description": "call the number, type any number, hear it's audio or create if new",
+  "main": "answer.js",
+  "scripts": {
+    "test": "mocha",
+    "start": "node index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/insanity54/audiotour.git"
+  },
+  "author": "Chris Grimmett <chris@grimtech.net>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/insanity54/audiotour/issues"
+  },
+  "homepage": "https://github.com/insanity54/audiotour#readme",
+  "dependencies": {
+    "body-parser": "^1.15.0",
+    "express": "^4.13.4",
+    "nconf": "^0.8.4",
+    "plivo-node": "^0.2.5",
+    "redis": "^2.6.0-2",
+    "supertest": "^1.2.0"
+  },
+  "devDependencies": {
+    "chai": "^3.5.0",
+    "mocha": "^2.4.5",
+    "supertest": "^1.2.0"
+  }
+}
