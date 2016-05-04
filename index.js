@@ -8,6 +8,7 @@ var nconf = require('nconf');
 var path = require('path');
 var redis = require('redis');
 var url = require('url');
+var Downloader = require('./downloader');
 
 
 //
@@ -21,6 +22,7 @@ var port = process.env.PORT || 5000;
 //
 var app = express();
 var red = redis.createClient();
+var downloader = new Downloader(nconf);
 app.use(bodyParser.urlencoded({ extended: false })); // Required for parsing POST
 app.use(bodyParser.json()); // parse application/json
 nconf.file(path.join(__dirname, 'config.json'));
@@ -55,7 +57,7 @@ app.get('/', function(req, res) {
  *   - hangup if no digits received
  * 
  */
-app.all('/response/sip/ringing/', function(req, res) {
+app.post('/response/sip/ringing/', function(req, res) {
     //console.log(req.params);
     //var hangup = req.params['HangupCause'];
     //console.log('hangup: ' + hangup);
@@ -67,7 +69,7 @@ app.all('/response/sip/ringing/', function(req, res) {
     var digitOptions = {
         action: url.resolve(rootURL, '/response/sip/digits/'),
         redirect: "true",
-        timeout: 3,     // first digit must be received within 3s
+        timeout: 5,     // first digit must be received within 3s
         digitTimeout: 2 // time between digits must not be greater than 2s
     };
     
@@ -95,7 +97,7 @@ app.all('/response/sip/ringing/', function(req, res) {
 });
 
 
-app.all('/response/sip/hangup/', function(req, res) {
+app.post('/response/sip/hangup/', function(req, res) {
   //console.log('hangup check');
   //console.log(req.query);
   var hangup = req.params['HangupCause'];
@@ -157,10 +159,13 @@ app.all('/response/sip/hangup/', function(req, res) {
 // });
 
 app.post('/response/sip/digits/', function(req, res) {
-    console.log(req.params);
-    var digits = req.params['Digits'];
-    console.log('got digits: '+digits);
-    
+    var digits = req.body['Digits'];
+    var callUUID = req.body['CallUUID'];
+    //console.log('got digits: '+digits);
+    if (typeof digits === 'undefined') return res.status(400).json({'error': true, 'msg': 'yo, dem Digits be missing'});
+    if (typeof callUUID === 'undefined') return res.status(400).json({'error': true, 'msg': 'yo, where da callUUID at?'});
+    if (!/[0-9a-z]{8}-[0-9a-z]{4}-[0-9a-z]{4}-[0-9a-z]{4}-[0-9a-z]{12}/.test(callUUID)) return res.status(400).json({'error': true, 'msg': 'yo, that CallUUID is wack.'});
+
     var r = plivo.Response();
     r.addSpeak('communique '+digits);
     //r.addWait({length: 3});
@@ -171,28 +176,69 @@ app.post('/response/sip/digits/', function(req, res) {
     // find if this is a pre-recorded communique by
     // querying the database
     red.GET('audiotour:digits:'+digits, function(err, reply) {
+        //console.log('redis returned err=%s, reply=%s', err, reply);
         if (err) {
             r.addSpeak('sector cordoned');
             return res.end(r.toXML());
         }
         
-        // redirect to the record endpoint if there is no communique
+        // record if there is no communique
         if (!reply) {
-            r.addRedirect('');
-            res.end(r.toXML());
-        }
+            //r.addRedirect(url.resolve(rootURL, '/response/sip/record/'));
+            // log the callID with the digits
+            
+            red.set('audiotour:callid:'+callUUID, digits, function(err, reply) {
+                if (err) throw err;
+                r.addSpeak('You have 30 seconds to transmit your communique');
+                var recordOpts = {
+                    //action: url.resolve(rootURL, '/response/sip/record/'),
+                    redirect: false,
+                    method: 'POST',
+                    fileFormat: 'mp3',
+                    maxLength: 30,
+                    playBeep: true,
+                    callbackUrl: url.resolve(rootURL, '/response/sip/recording_ready/'),
+                    callbackMethod: 'POST'
+                };
+                r.addRecord(recordOpts);
+                r.addSpeak('connection terminate');
+                return res.end(r.toXML());
+            });
         
+        }
+        // if the digits are old
         // play the recorded communique
         else {
             r.addPlay(reply);
-            res.end(r.toXML());
+            return res.end(r.toXML());
         }
+        
     });
 });
 
 
+/** a recording was just made, and plivo is telling us that it is ready to play*/
+app.post('/response/sip/recording_ready/', function(req, res) {
+    //console.log(req.body);
+    //console.log(req.query);
+    //console.log(req.params);
+    res.status(200).send('OK');
+});
 
-app.post('/response/sip/recording/', function(req, res) {
+
+
+app.post('/response/sip/record/', function(req, res) {
+    //console.log('** recording result **');
+     
+    var r = plivo.Response();
+    
+    res.set({
+        'Content-Type': 'text/xml'
+    });
+    return res.end(r.toXML());
+});
+    
+app.post('/response/sip/recorded/', function(req, res) {
     console.log('** recording received **');
     var file = req.params['RecordUrl'];
     var id = req.params['RecordingID'];

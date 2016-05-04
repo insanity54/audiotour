@@ -23,6 +23,7 @@
     "nconf": "^0.8.4",
     "plivo-node": "^0.2.5",
     "redis": "^2.6.0-2",
+    "superagent": "^1.8.3",
     "supertest": "^1.2.0"
   },
   "devDependencies": {
