@@ -20,15 +20,15 @@
   "dependencies": {
     "body-parser": "^1.15.0",
     "express": "^4.13.4",
-    "nconf": "^0.8.4",
+    "nconf": "^0.10.0",
     "plivo-node": "^0.2.5",
     "redis": "^2.6.0-2",
-    "superagent": "^1.8.3",
-    "supertest": "^1.2.0"
+    "superagent": "^3.8.3",
+    "supertest": "^3.3.0"
   },
   "devDependencies": {
-    "chai": "^3.5.0",
-    "mocha": "^2.4.5",
-    "supertest": "^1.2.0"
+    "chai": "^4.2.0",
+    "mocha": "^5.2.0",
+    "supertest": "^3.3.0"
   }
 }
